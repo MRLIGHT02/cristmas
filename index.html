@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Christmas Tree • 3D ASCII Generative Art</title>
+  <style>
+    :root {
+      --bg-desktop: #07080c;
+      --win-header-bg: #1c1d27;
+      --win-header-border: #2c2f3e;
+      --gold-accent: #facc15;
+      --green-accent: #22c55e;
+      --red-accent: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 25%, #141724 0%, #08090e 70%, #030406 100%);
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Outer Wrapper */
+    .app-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    /* Window Container (Replicating the video GUI window) */
+    .tree-window {
+      position: relative;
+      width: min(95vw, 1100px);
+      height: min(92vh, 890px);
+      background-color: #000000;
+      border: 1px solid var(--win-header-border);
+      border-radius: 9px;
+      box-shadow: 0 25px 65px rgba(0, 0, 0, 0.85), 0 0 50px rgba(34, 197, 94, 0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .tree-window.fullscreen {
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+      border: none;
+      padding: 0;
+    }
+
+    /* Window Title Bar */
+    .window-header {
+      height: 38px;
+      background: linear-gradient(180deg, #242735 0%, #1a1c28 100%);
+      border-bottom: 1px solid #2d3143;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .window-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #e2e8f0;
+      letter-spacing: 0.3px;
+    }
+
+    .window-title .tree-icon {
+      font-size: 15px;
+      filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.5));
+    }
+
+    .window-title .py-tag {
+      background: rgba(59, 130, 246, 0.18);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    .window-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .win-btn {
+      width: 28px;
+      height: 24px;
+      border-radius: 4px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .win-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+
+    .win-btn.close:hover {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    /* Canvas Viewport */
+    .canvas-viewport {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .canvas-viewport:active {
+      cursor: grabbing;
+    }
+
+    canvas#asciiCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Top Badges / Hints */
+    .drag-hint {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+      z-index: 5;
+    }
+
+    .drag-hint span {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .top-actions {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .action-badge {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .action-badge:hover {
+      background: rgba(239, 68, 68, 0.35);
+      transform: scale(1.03);
+    }
+
+    .code-badge {
+      background: rgba(59, 130, 246, 0.18);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      color: #bfdbfe;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: monospace;
+      transition: all 0.2s;
+    }
+
+    .code-badge:hover {
+      background: rgba(59, 130, 246, 0.3);
+      transform: scale(1.03);
+    }
+
+    /* Interactive Toolbar */
+    .controls-toolbar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(18, 20, 28, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 5px 12px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      z-index: 20;
+      max-width: 95%;
+      flex-wrap: nowrap;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .tool-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #f1f5f9;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+
+    .tool-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.28);
+      transform: translateY(-1px);
+    }
+
+    .tool-btn.active {
+      background: rgba(34, 197, 94, 0.24);
+      border-color: rgba(34, 197, 94, 0.6);
+      color: #86efac;
+    }
+
+    .tool-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Modal dialogs */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: linear-gradient(145deg, #161822 0%, #0e1017 100%);
+      border: 1px solid rgba(250, 204, 21, 0.35);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 35px rgba(250, 204, 21, 0.12);
+      width: min(90%, 460px);
+      padding: 28px;
+      border-radius: 16px;
+      text-align: center;
+      position: relative;
+      transform: scale(0.92);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.open .modal-card {
+      transform: scale(1);
+    }
+
+    .modal-icon {
+      font-size: 46px;
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: giftBounce 1.3s infinite ease-in-out;
+    }
+
+    @keyframes giftBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-7px) rotate(4deg); }
+    }
+
+    .modal-title {
+      font-size: 21px;
+      font-weight: 700;
+      color: #facc15;
+      margin-bottom: 8px;
+      text-shadow: 0 0 14px rgba(250, 204, 21, 0.4);
+    }
+
+    .modal-body {
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.65;
+      margin-bottom: 22px;
+    }
+
+    .modal-btn {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #fff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4);
+      transition: all 0.2s;
+    }
+
+    .modal-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(239, 68, 68, 0.6);
+    }
+
+    /* Python code preview modal */
+    .code-box {
+      text-align: left;
+      background: #090b10;
+      border: 1px solid #1f2433;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      color: #93c5fd;
+      max-height: 280px;
+      overflow-y: auto;
+      white-space: pre;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+      .window-header {
+        height: 35px;
+        padding: 0 8px;
+      }
+      .controls-toolbar {
+        bottom: 10px;
+        padding: 4px 8px;
+        gap: 5px;
+      }
+      .tool-btn {
+        padding: 4px 9px;
+        font-size: 11px;
+      }
+      .drag-hint {
+        display: none;
+      }
+      .top-actions {
+        top: 8px;
+        right: 8px;
+        gap: 5px;
+      }
+      .action-badge, .code-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Window matching tree2.py GUI Window from video -->
+    <div class="tree-window" id="treeWindow">
+      
+      <!-- Window Title Bar -->
+      <div class="window-header">
+        <div class="window-title">
+          <span class="tree-icon">🎄</span>
+          <span>Christmas Tree</span>
+          <span class="py-tag">tree2.py</span>
+        </div>
+        <div class="window-actions">
+          <button class="win-btn" id="btnMinimize" title="Minimize">−</button>
+          <button class="win-btn" id="btnMaximize" title="Fullscreen">□</button>
+          <button class="win-btn close" id="btnClose" title="Reset">×</button>
+        </div>
+      </div>
+
+      <!-- Canvas Viewport -->
+      <div class="canvas-viewport" id="viewport">
+        <canvas id="asciiCanvas"></canvas>
+
+        <div class="drag-hint">
+          <span>DRAG</span> Rotate 3D &nbsp;|&nbsp; <span>SCROLL</span> Zoom
+        </div>
+
+        <div class="top-actions">
+          <div class="code-badge" id="btnShowCode">
+            <span>&lt;/&gt; View tree2.py</span>
+          </div>
+          <div class="action-badge" id="btnGiftSurprise">
+            🎁 Unwrap Gift!
+          </div>
+        </div>
+
+        <!-- Interactive Toolbar -->
+        <div class="controls-toolbar">
+          <button class="tool-btn active" id="btnRotate">
+            <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+            <span>Auto Rotate</span>
+          </button>
+
+          <button class="tool-btn" id="btnReplay">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            <span>Replay Build</span>
+          </button>
+
+          <button class="tool-btn" id="btnMusic">
+            <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            <span id="musicLabel">Music: Off</span>
+          </button>
+
+          <button class="tool-btn" id="btnSnow">
+            <span>❄ Snow: Normal</span>
+          </button>
+
+          <button class="tool-btn" id="btnResetCam">
+            <span>⟲ Reset Cam</span>
+          </button>
+        </div>
+
+        <!-- Gift Message Modal -->
+        <div class="modal-overlay" id="giftModal">
+          <div class="modal-card">
+            <div class="modal-icon">🎁🎄✨</div>
+            <h3 class="modal-title">Merry Christmas & Happy Holidays!</h3>
+            <p class="modal-body" id="giftText">
+              "Wishing you a season filled with warmth, joy, peace, and coding magic!"
+            </p>
+            <button class="modal-btn" id="btnModalClose">Open Another Gift</button>
+          </div>
+        </div>
+
+        <!-- Code Modal (Showing the tree2.py code from the video) -->
+        <div class="modal-overlay" id="codeModal">
+          <div class="modal-card" style="width: min(92%, 580px);">
+            <h3 class="modal-title" style="margin-bottom: 12px; font-size: 18px;">tree2.py (Python Source)</h3>
+            <div class="code-box">def box_faces(size, step):
+    sx, sy, sz = size
+    faces = [((-sx / 2, sy, -sz / 2), (sx, 0, 0), (0, 0, sz), (0, 1, 0)),
+             ((sx / 2, 0, -sz / 2), (0, sy, 0), (0, 0, sz), (1, 0, 0)),
+             ((-sx / 2, 0, -sz / 2), (0, sy, 0), (0, 0, sz), (-1, 0, 0)),
+             ((-sx / 2, 0, sz / 2), (sx, 0, 0), (0, sy, 0), (0, 0, 1)),
+             ((-sx / 2, 0, -sz / 2), (sx, 0, 0), (0, sy, 0), (0, 0, -1))]
+    pts, nr = [], []
+    for o, ua, ub, n in faces:
+        o, ua, ub = np.array(o, float), np.array(ua, float), np.array(ub, float)
+        ns, nt = int(np.linalg.norm(ua) / step) + 1, int(np.linalg.norm(ub) / step) + 1
+        s, v = np.meshgrid(np.linspace(0, 1, ns), np.linspace(0, 1, nt))
+        pts.append((o + s.reshape(-1, 1) * ua + v.reshape(-1, 1) * ub))
+        nr.append(np.tile(np.array(n, float), (ns * nt, 1)))
+    return np.concatenate(pts), np.concatenate(nr)
+
+def build_gifts(cloud):
+    gifts = [(25, 1.42, (0.34, 0.28, 0.34), 0.3, GIFT_R, 1.3),
+             (65, 1.50, (0.30, 0.20, 0.40), -0.4, GIFT_G, 3.5),
+             (115, 1.44, (0.38, 0.30, 0.30), 0.5, GIFT_G, 3.5),
+             (155, 1.38, (0.26, 0.34, 0.26), 0.1, GIFT_R, 4.4),
+             (90, 1.55, (0.22, 0.14, 0.22), 0.8, GIFT_R, 4.4)]
+    # Generates 3D ASCII point cloud with ribbons & bows...</div>
+            <button class="modal-btn" id="btnCodeModalClose">Back to 3D View</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 3D ASCII Christmas Tree Generative Art Engine
+     * Single-page Web App reproducing tree2.py
+     */
+
+    // --- Holiday Chime Synthesizer (Pure Web Audio API) ---
+    class ChimeSynthesizer {
+      constructor() {
+        this.ctx = null;
+        this.isPlaying = false;
+        this.timer = null;
+        this.step = 0;
+        
+        // Frequencies for "We Wish You a Merry Christmas" & "Jingle Bells"
+        const C4 = 261.63, D4 = 293.66, E4 = 329.63, F4 = 349.23, G4 = 392.00,
+              A4 = 440.00, B4 = 493.88, C5 = 523.25, D5 = 587.33, E5 = 659.25;
+
+        this.melody = [
+          [D4, 1], [G4, 1], [G4, 0.5], [A4, 0.5], [G4, 0.5], [F4, 0.5], [E4, 1], [C4, 1],
+          [E4, 1], [A4, 1], [A4, 0.5], [B4, 0.5], [A4, 0.5], [G4, 0.5], [F4, 1], [D4, 1],
+          [F4, 1], [B4, 1], [B4, 0.5], [C5, 0.5], [B4, 0.5], [A4, 0.5], [G4, 1], [E4, 1],
+          [D4, 0.5], [D4, 0.5], [E4, 1], [A4, 1], [F4, 1], [G4, 2],
+          // Chorus
+          [D4, 1], [G4, 1], [G4, 1], [G4, 1], [F4, 2], [F4, 1],
+          [G4, 1], [F4, 1], [E4, 1], [D4, 2], [A4, 1],
+          [B4, 1], [A4, 0.5], [G4, 0.5], [D5, 1], [D4, 1],
+          [E4, 1], [A4, 1], [F4, 1], [G4, 2]
+        ];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, durationSec) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(freq, now);
+
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(freq * 2.01, now); // Sparkling chime harmonic
+
+        // Bell envelope
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.18, now + 0.035);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec * 1.35);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + durationSec * 1.4);
+        osc2.stop(now + durationSec * 1.4);
+      }
+
+      toggle() {
+        this.init();
+        if (this.isPlaying) {
+          this.stop();
+          return false;
+        } else {
+          this.start();
+          return true;
+        }
+      }
+
+      start() {
+        this.isPlaying = true;
+        this.step = 0;
+        this.tick();
+      }
+
+      stop() {
+        this.isPlaying = false;
+        if (this.timer) clearTimeout(this.timer);
+      }
+
+      tick() {
+        if (!this.isPlaying) return;
+        const [freq, beats] = this.melody[this.step % this.melody.length];
+        const tempo = 136; // BPM
+        const beatSec = 60 / tempo;
+        const durationSec = beats * beatSec;
+
+        this.playTone(freq, durationSec);
+        this.step++;
+        this.timer = setTimeout(() => this.tick(), durationSec * 1000);
+      }
+    }
+
+    // --- 3D Point-Cloud ASCII Engine ---
+    class PointCloudEngine {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        
+        // 3D Camera
+        this.camDistance = 6.6;
+        this.camPitch = 0.18;
+        this.camYaw = 0.38;
+        this.targetPitch = 0.18;
+        this.targetYaw = 0.38;
+        this.targetDistance = 6.6;
+        this.autoRotate = true;
+        this.autoRotateSpeed = 0.006;
+
+        // Interaction
+        this.isDragging = false;
+        this.lastX = 0;
+        this.lastY = 0;
+
+        // Animation timing
+        this.startTime = performance.now();
+        this.snowDensity = 1; // 0: light, 1: normal, 2: heavy
+
+        // Geometry tags
+        this.TAG_FOLIAGE = 1;
+        this.TAG_STAR = 2;
+        this.TAG_GARLAND = 3;
+        this.TAG_BAUBLE = 4;
+        this.TAG_GIFT = 5;
+        this.TAG_SNOW_GROUND = 6;
+        this.TAG_SNOW_FALL = 7;
+
+        this.points = [];
+        this.snowflakes = [];
+
+        // ASCII Character sets mapped by lighting intensity
+        this.CHAR_SETS = {
+          foliage: ['~', '/', '\\', '|', '{', '}', '%', '&', '#', '@', 'W', 'M'],
+          star: ['★', '*', '#', '+', 'X', '@', 'A', '^'],
+          garland: ['~', '=', '*', '@', 'o', '#', 'S', '%'],
+          bauble: ['O', 'o', '@', '0', '*', '8', '●'],
+          gift: ['#', '=', '+', '|', '-', 'X', '[', ']', '%'],
+          snowGround: ['.', '-', '=', '~', ':', '·', ' '],
+          snowFall: ['*', '·', '•', '+', '✦', '.']
+        };
+
+        this.initGeometry();
+        this.initSnow();
+        this.bindEvents();
+      }
+
+      // 3D Gift Box generation (replicating box_faces in tree2.py)
+      generateBox(center, size, yaw = 0, baseColor = '#e74c3c', ribbonColor = '#ffd154', t0 = 1.0, dur = 0.6) {
+        const [sx, sy, sz] = size;
+        const step = 0.034;
+        const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+
+        const rot = (x, y, z) => [
+          x * cosY + z * sinY + center[0],
+          y + center[1],
+          -x * sinY + z * cosY + center[2]
+        ];
+
+        const rotNormal = (nx, ny, nz) => [
+          nx * cosY + nz * sinY,
+          ny,
+          -nx * sinY + nz * cosY
+        ];
+
+        // 5 faces: Top (+Y) and 4 sides
+        const faces = [
+          { o: [-sx/2, sy, -sz/2], ua: [sx, 0, 0], ub: [0, 0, sz], n: [0, 1, 0] },
+          { o: [sx/2, 0, -sz/2], ua: [0, sy, 0], ub: [0, 0, sz], n: [1, 0, 0] },
+          { o: [-sx/2, 0, -sz/2], ua: [0, sy, 0], ub: [0, 0, sz], n: [-1, 0, 0] },
+          { o: [-sx/2, 0, sz/2], ua: [sx, 0, 0], ub: [0, sy, 0], n: [0, 0, 1] },
+          { o: [-sx/2, 0, -sz/2], ua: [sx, 0, 0], ub: [0, sy, 0], n: [0, 0, -1] }
+        ];
+
+        for (const f of faces) {
+          const lenA = Math.hypot(...f.ua);
+          const lenB = Math.hypot(...f.ub);
+          const ns = Math.max(2, Math.floor(lenA / step));
+          const nt = Math.max(2, Math.floor(lenB / step));
+
+          for (let i = 0; i <= ns; i++) {
+            const u = i / ns;
+            for (let j = 0; j <= nt; j++) {
+              const v = j / nt;
+              const lx = f.o[0] + u * f.ua[0] + v * f.ub[0];
+              const ly = f.o[1] + u * f.ua[1] + v * f.ub[1];
+              const lz = f.o[2] + u * f.ua[2] + v * f.ub[2];
+
+              // Ribbon cross check: horizontal & vertical strip along box
+              const isRibbonX = Math.abs(lx) < 0.042;
+              const isRibbonZ = Math.abs(lz) < 0.042;
+              const isRibbon = (f.n[1] === 1 && (isRibbonX || isRibbonZ)) ||
+                               (f.n[0] !== 0 && isRibbonZ) ||
+                               (f.n[2] !== 0 && isRibbonX);
+
+              const [wx, wy, wz] = rot(lx, ly, lz);
+              const [wnx, wny, wnz] = rotNormal(...f.n);
+
+              this.points.push({
+                x: wx, y: wy, z: wz,
+                nx: wnx, ny: wny, nz: wnz,
+                color: isRibbon ? ribbonColor : baseColor,
+                tag: this.TAG_GIFT,
+                t0: t0,
+                dur: dur,
+                specular: isRibbon ? 0.7 : 0.35,
+                anchorY: center[1]
+              });
+            }
+          }
+        }
+
+        // Spherical Ribbon Bow on top
+        const bows = [
+          { off: [-0.045, sy + 0.035, 0], r: 0.045 },
+          { off: [0.045, sy + 0.035, 0], r: 0.045 },
+          { off: [0, sy + 0.025, 0], r: 0.032 }
+        ];
+
+        for (const b of bows) {
+          const latN = 5, lonN = 9;
+          for (let la = 0; la <= latN; la++) {
+            const phi = (la / latN) * Math.PI - Math.PI / 2;
+            for (let lo = 0; lo < lonN; lo++) {
+              const theta = (lo / lonN) * 2 * Math.PI;
+              const bx = b.off[0] + b.r * Math.cos(phi) * Math.cos(theta);
+              const by = b.off[1] + b.r * Math.sin(phi);
+              const bz = b.off[2] + b.r * Math.cos(phi) * Math.sin(theta);
+              const [wx, wy, wz] = rot(bx, by, bz);
+              const [wnx, wny, wnz] = rotNormal(Math.cos(phi)*Math.cos(theta), Math.sin(phi), Math.cos(phi)*Math.sin(theta));
+
+              this.points.push({
+                x: wx, y: wy, z: wz,
+                nx: wnx, ny: wny, nz: wnz,
+                color: ribbonColor,
+                tag: this.TAG_GIFT,
+                t0: t0 + 0.15,
+                dur: dur,
+                specular: 0.85,
+                anchorY: center[1]
+              });
+            }
+          }
+        }
+      }
+
+      // Generate the entire 3D Christmas Tree Point Cloud
+      initGeometry() {
+        this.points = [];
+
+        const GROUND_Y = -1.25;
+        const TREE_HEIGHT = 3.35;
+        const BASE_RADIUS = 1.38;
+
+        // 1. Snow Skirt / Blanket (Under tree)
+        const groundRings = 40;
+        for (let r = 0; r < groundRings; r++) {
+          const rad = (r / groundRings) * 2.15;
+          const ringPoints = Math.floor(12 + r * 7.5);
+          for (let p = 0; p < ringPoints; p++) {
+            const angle = (p / ringPoints) * 2 * Math.PI;
+            const jitter = (Math.random() - 0.5) * 0.04;
+            const x = (rad + jitter) * Math.cos(angle);
+            const z = (rad + jitter) * Math.sin(angle);
+            const y = GROUND_Y + Math.sin(rad * 4.2) * 0.02 - 0.02;
+
+            this.points.push({
+              x, y, z,
+              nx: 0, ny: 1, nz: 0,
+              color: '#dce7f9',
+              tag: this.TAG_SNOW_GROUND,
+              t0: 0.1,
+              dur: 0.8,
+              specular: 0.12,
+              anchorY: GROUND_Y
+            });
+          }
+        }
+
+        // 2. Tree Trunk
+        const trunkH = 0.5;
+        const trunkR = 0.18;
+        for (let ty = 0; ty < trunkH; ty += 0.045) {
+          const y = GROUND_Y + ty;
+          for (let th = 0; th < 2 * Math.PI; th += 0.3) {
+            const x = trunkR * Math.cos(th);
+            const z = trunkR * Math.sin(th);
+            this.points.push({
+              x, y, z,
+              nx: Math.cos(th), ny: 0, nz: Math.sin(th),
+              color: '#784d28',
+              tag: this.TAG_FOLIAGE,
+              t0: 0.2,
+              dur: 0.5,
+              specular: 0.1,
+              anchorY: y
+            });
+          }
+        }
+
+        // 3. Dense Pine Foliage
+        const foliageCount = 11000;
+        const greenPalette = [
+          '#15803d', '#16a34a', '#22c55e', '#4ade80',
+          '#1b5e20', '#2e7d32', '#388e3c', '#86efac'
+        ];
+
+        for (let i = 0; i < foliageCount; i++) {
+          const hFrac = Math.pow(Math.random(), 0.88); // 0 at base, 1 at apex
+          const y = GROUND_Y + 0.35 + hFrac * TREE_HEIGHT;
+
+          // Scalloped branch tiers (7 tiers)
+          const tierWave = Math.sin(hFrac * Math.PI * 14);
+          const maxR = (1 - hFrac * 0.94) * BASE_RADIUS * (0.85 + 0.26 * Math.max(0, tierWave));
+          
+          const rFrac = 0.32 + 0.68 * Math.sqrt(Math.random());
+          const r = maxR * rFrac;
+
+          const goldenAngle = 2.39996;
+          const theta = i * goldenAngle + (Math.random() - 0.5) * 0.25;
+
+          const x = r * Math.cos(theta);
+          const z = r * Math.sin(theta);
+
+          const nx = Math.cos(theta) * 0.85;
+          const ny = 0.32;
+          const nz = Math.sin(theta) * 0.85;
+          const nLen = Math.hypot(nx, ny, nz);
+
+          const greenShade = greenPalette[Math.floor(Math.random() * greenPalette.length)];
+          const t0 = 0.35 + hFrac * 2.8;
+
+          this.points.push({
+            x, y, z,
+            nx: nx / nLen, ny: ny / nLen, nz: nz / nLen,
+            color: greenShade,
+            tag: this.TAG_FOLIAGE,
+            t0: t0,
+            dur: 0.45,
+            specular: 0.22,
+            anchorY: y
+          });
+        }
+
+        // 4. Helical Garland Ribbons (Red & Gold spirals winding down)
+        const garlands = [
+          { offset: 0, color: '#ef4444', revs: 4.8 },
+          { offset: Math.PI, color: '#facc15', revs: 4.8 }
+        ];
+
+        for (const g of garlands) {
+          const steps = 650;
+          for (let s = 0; s < steps; s++) {
+            const frac = s / steps;
+            const y = (GROUND_Y + 0.45) + (1 - frac) * (TREE_HEIGHT - 0.22);
+            const coneR = (1 - (y - GROUND_Y - 0.45) / TREE_HEIGHT) * (BASE_RADIUS * 0.98);
+            const theta = frac * g.revs * 2 * Math.PI + g.offset;
+
+            for (let w = -1; w <= 1; w++) {
+              const r = coneR + 0.02 + w * 0.016;
+              const x = r * Math.cos(theta);
+              const z = r * Math.sin(theta);
+
+              this.points.push({
+                x, y: y + w * 0.012, z,
+                nx: Math.cos(theta), ny: 0.22, nz: Math.sin(theta),
+                color: g.color,
+                tag: this.TAG_GARLAND,
+                t0: 3.1 + (1 - frac) * 1.5,
+                dur: 0.35,
+                specular: 0.7,
+                anchorY: y
+              });
+            }
+          }
+        }
+
+        // 5. Ornaments / Baubles: Ruby, Gold, Cyan, Magenta, Purple, Orange
+        const baubleColors = [
+          '#ff3b30', // Ruby red
+          '#fbbf24', // Golden amber
+          '#06b6d4', // Cyan
+          '#f43f5e', // Rose pink
+          '#a855f7', // Purple
+          '#f97316', // Orange
+          '#3b82f6'  // Sapphire blue
+        ];
+
+        const baubleCount = 85;
+        for (let b = 0; b < baubleCount; b++) {
+          const bFrac = 0.07 + (b / baubleCount) * 0.84;
+          const y = GROUND_Y + 0.45 + bFrac * TREE_HEIGHT;
+          const r = (1 - bFrac * 0.92) * BASE_RADIUS * 0.97;
+          const theta = b * 3.883 + Math.sin(b * 5) * 0.35;
+
+          const cx = r * Math.cos(theta);
+          const cy = y;
+          const cz = r * Math.sin(theta);
+
+          const bColor = baubleColors[b % baubleColors.length];
+          const bRadius = 0.048 + Math.random() * 0.02;
+
+          const latN = 5, lonN = 9;
+          for (let la = 0; la <= latN; la++) {
+            const phi = (la / latN) * Math.PI - Math.PI / 2;
+            for (let lo = 0; lo < lonN; lo++) {
+              const th = (lo / lonN) * 2 * Math.PI;
+              const bx = cx + bRadius * Math.cos(phi) * Math.cos(th);
+              const by = cy + bRadius * Math.sin(phi);
+              const bz = cz + bRadius * Math.cos(phi) * Math.sin(th);
+              const nx = Math.cos(phi) * Math.cos(th);
+              const ny = Math.sin(phi);
+              const nz = Math.cos(phi) * Math.sin(th);
+
+              this.points.push({
+                x: bx, y: by, z: bz,
+                nx, ny, nz,
+                color: bColor,
+                tag: this.TAG_BAUBLE,
+                t0: 3.7 + (1 - bFrac) * 1.6 + (b % 5) * 0.08,
+                dur: 0.32,
+                specular: 0.92,
+                phase: Math.random() * 6.28,
+                anchorY: cy
+              });
+            }
+          }
+        }
+
+        // 6. Radiant Golden Star atop the Tree
+        const starCenterY = GROUND_Y + 0.35 + TREE_HEIGHT + 0.22;
+        const starPointsCount = 320;
+        for (let sp = 0; sp < starPointsCount; sp++) {
+          const angle = Math.random() * 2 * Math.PI;
+          const k = 5;
+          const starShape = 0.12 + 0.16 * Math.pow(Math.abs(Math.cos((k / 2) * angle)), 3.0);
+          const r = starShape * Math.sqrt(Math.random());
+          const x = r * Math.cos(angle);
+          const y = starCenterY + r * Math.sin(angle);
+          const zDepth = (1 - r / 0.28) * 0.05 * (Math.random() > 0.5 ? 1 : -1);
+
+          this.points.push({
+            x, y, z: zDepth,
+            nx: 0, ny: 0.4, nz: zDepth > 0 ? 0.9 : -0.9,
+            color: '#facc15',
+            tag: this.TAG_STAR,
+            t0: 3.0,
+            dur: 0.6,
+            specular: 1.0,
+            anchorY: starCenterY
+          });
+        }
+
+        // 7. Decorated Gift Boxes around the base (matching build_gifts in tree2.py)
+        const giftsData = [
+          { deg: 25,  rad: 1.45, size: [0.34, 0.28, 0.34], yaw: 0.3,  color: '#dc2626', ribbon: '#facc15', delay: 0.3 }, // Red
+          { deg: 72,  rad: 1.52, size: [0.30, 0.22, 0.38], yaw: -0.4, color: '#16a34a', ribbon: '#f59e0b', delay: 0.7 }, // Green
+          { deg: 120, rad: 1.46, size: [0.36, 0.30, 0.30], yaw: 0.5,  color: '#2563eb', ribbon: '#facc15', delay: 1.1 }, // Blue
+          { deg: 165, rad: 1.40, size: [0.28, 0.34, 0.28], yaw: 0.1,  color: '#9333ea', ribbon: '#f59e0b', delay: 1.5 }, // Purple
+          { deg: -35, rad: 1.48, size: [0.32, 0.26, 0.32], yaw: 0.8,  color: '#ea580c', ribbon: '#22c55e', delay: 1.9 }, // Orange
+          { deg: -85, rad: 1.42, size: [0.30, 0.24, 0.30], yaw: -0.3, color: '#dc2626', ribbon: '#ffffff', delay: 2.2 }  // Crimson
+        ];
+
+        for (const g of giftsData) {
+          const a = (g.deg * Math.PI) / 180;
+          const cx = g.rad * Math.cos(a);
+          const cy = GROUND_Y + 0.02;
+          const cz = g.rad * Math.sin(a);
+          this.generateBox([cx, cy, cz], g.size, g.yaw, g.color, g.ribbon, 4.6 + g.delay, 0.65);
+        }
+      }
+
+      // Initialize Falling Snow Particles
+      initSnow() {
+        this.snowflakes = [];
+        const count = 400;
+        for (let i = 0; i < count; i++) {
+          this.snowflakes.push({
+            x: (Math.random() - 0.5) * 6.5,
+            y: -1.2 + Math.random() * 5.5,
+            z: (Math.random() - 0.5) * 6.5,
+            vy: 0.012 + Math.random() * 0.018,
+            vx: (Math.random() - 0.5) * 0.005,
+            vz: (Math.random() - 0.5) * 0.005,
+            char: this.CHAR_SETS.snowFall[Math.floor(Math.random() * this.CHAR_SETS.snowFall.length)],
+            size: 9 + Math.random() * 7,
+            opacity: 0.3 + Math.random() * 0.7
+          });
+        }
+      }
+
+      replayBuild() {
+        this.startTime = performance.now();
+      }
+
+      bindEvents() {
+        const c = this.canvas;
+
+        const onDown = (x, y) => {
+          this.isDragging = true;
+          this.lastX = x;
+          this.lastY = y;
+          this.autoRotate = false;
+          document.getElementById('btnRotate').classList.remove('active');
+        };
+
+        const onMove = (x, y) => {
+          if (!this.isDragging) return;
+          const dx = x - this.lastX;
+          const dy = y - this.lastY;
+          this.lastX = x;
+          this.lastY = y;
+
+          this.targetYaw += dx * 0.008;
+          this.targetPitch = Math.max(-0.4, Math.min(0.7, this.targetPitch + dy * 0.008));
+        };
+
+        const onUp = () => {
+          this.isDragging = false;
+        };
+
+        c.addEventListener('mousedown', (e) => onDown(e.clientX, e.clientY));
+        window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+        window.addEventListener('mouseup', onUp);
+
+        c.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 1) {
+            onDown(e.touches[0].clientX, e.touches[0].clientY);
+          }
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+          if (e.touches.length === 1) {
+            onMove(e.touches[0].clientX, e.touches[0].clientY);
+          }
+        }, { passive: true });
+
+        window.addEventListener('touchend', onUp);
+
+        c.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          this.targetDistance = Math.max(3.6, Math.min(10.0, this.targetDistance + e.deltaY * 0.005));
+        }, { passive: false });
+      }
+
+      render(time) {
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const ctx = this.ctx;
+
+        // Clear to deep terminal black
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+
+        // Camera damping
+        this.camPitch += (this.targetPitch - this.camPitch) * 0.1;
+        this.camYaw += (this.targetYaw - this.camYaw) * 0.1;
+        this.camDistance += (this.targetDistance - this.camDistance) * 0.1;
+
+        if (this.autoRotate) {
+          this.targetYaw += this.autoRotateSpeed;
+        }
+
+        const elapsed = (time - this.startTime) / 1000;
+
+        const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch);
+        const cy = Math.cos(this.camYaw), sy = Math.sin(this.camYaw);
+
+        // Key light direction
+        const lightDir = [0.45, 0.75, 0.5];
+        const lLen = Math.hypot(...lightDir);
+        const lx = lightDir[0] / lLen, ly = lightDir[1] / lLen, lz = lightDir[2] / lLen;
+
+        const fov = Math.min(width, height) * 1.18;
+        const cx = width / 2;
+        const cyCenter = height * 0.50;
+
+        // Draw falling snow
+        const snowMult = this.snowDensity === 0 ? 0.35 : this.snowDensity === 1 ? 1.0 : 2.2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let i = 0; i < this.snowflakes.length * snowMult; i++) {
+          const s = this.snowflakes[i % this.snowflakes.length];
+          s.y -= s.vy;
+          s.x += s.vx + Math.sin(elapsed * 1.5 + i) * 0.002;
+          s.z += s.vz;
+          if (s.y < -1.35) {
+            s.y = 4.2;
+            s.x = (Math.random() - 0.5) * 6.5;
+            s.z = (Math.random() - 0.5) * 6.5;
+          }
+
+          const x1 = s.x * cy - s.z * sy;
+          const z1 = s.x * sy + s.z * cy;
+          const syAdj = s.y - 0.32;
+          const y2 = syAdj * cp - z1 * sp;
+          const z2 = syAdj * sp + z1 * cp + this.camDistance;
+
+          if (z2 > 0.4) {
+            const sx = cx + (x1 / z2) * fov;
+            const syPos = cyCenter - (y2 / z2) * fov;
+            if (sx >= 0 && sx < width && syPos >= 0 && syPos < height) {
+              const alpha = (s.opacity * (1 - z2 / 12)).toFixed(2);
+              ctx.font = `${Math.max(7, (s.size / z2) * 5)}px monospace`;
+              ctx.fillStyle = `rgba(235, 245, 255, ${Math.max(0.05, alpha)})`;
+              ctx.fillText(s.char, sx, syPos);
+            }
+          }
+        }
+
+        // Project 3D points
+        const projectedPoints = [];
+
+        for (let i = 0; i < this.points.length; i++) {
+          const pt = this.points[i];
+
+          if (elapsed < pt.t0) continue;
+          const age = elapsed - pt.t0;
+          const progress = Math.min(1.0, age / pt.dur);
+          const scale = progress < 1.0 ? 0.2 + 0.8 * (1 - Math.pow(1 - progress, 3)) : 1.0;
+
+          const px = pt.x * scale;
+          const py = (pt.anchorY + (pt.y - pt.anchorY) * scale) - 0.32;
+          const pz = pt.z * scale;
+
+          const x1 = px * cy - pz * sy;
+          const z1 = px * sy + pz * cy;
+          const y2 = py * cp - z1 * sp;
+          const z2 = py * sp + z1 * cp + this.camDistance;
+
+          if (z2 <= 0.3) continue;
+
+          const nx1 = pt.nx * cy - pt.nz * sy;
+          const nz1 = pt.nx * sy + pt.nz * cy;
+          const ny2 = pt.ny * cp - nz1 * sp;
+          const nz2 = pt.ny * sp + nz1 * cp;
+
+          const diffuse = Math.max(0.18, nx1 * lx + ny2 * ly + nz2 * lz);
+          const viewX = -x1 / z2, viewY = -y2 / z2, viewZ = 1.0;
+          const vLen = Math.hypot(viewX, viewY, viewZ);
+          const hx = lx + viewX / vLen, hy = ly + viewY / vLen, hz = lz + viewZ / vLen;
+          const hLen = Math.hypot(hx, hy, hz);
+          const specDot = Math.max(0, (nx1 * hx + ny2 * hy + nz2 * hz) / hLen);
+          const specular = Math.pow(specDot, 12) * pt.specular;
+
+          const sx = cx + (x1 / z2) * fov;
+          const syPos = cyCenter - (y2 / z2) * fov;
+
+          projectedPoints.push({
+            sx, sy: syPos, z: z2,
+            diffuse, specular,
+            pt, scale
+          });
+        }
+
+        // Sort back-to-front
+        projectedPoints.sort((a, b) => b.z - a.z);
+
+        const baseFontSize = Math.max(10, Math.floor(fov / 75));
+
+        for (let i = 0; i < projectedPoints.length; i++) {
+          const { sx, sy: syPos, z, diffuse, specular, pt, scale } = projectedPoints[i];
+
+          if (sx < -20 || sx > width + 20 || syPos < -20 || syPos > height + 20) continue;
+
+          let charSet;
+          if (pt.tag === this.TAG_STAR) charSet = this.CHAR_SETS.star;
+          else if (pt.tag === this.TAG_GARLAND) charSet = this.CHAR_SETS.garland;
+          else if (pt.tag === this.TAG_BAUBLE) charSet = this.CHAR_SETS.bauble;
+          else if (pt.tag === this.TAG_GIFT) charSet = this.CHAR_SETS.gift;
+          else if (pt.tag === this.TAG_SNOW_GROUND) charSet = this.CHAR_SETS.snowGround;
+          else charSet = this.CHAR_SETS.foliage;
+
+          const brightness = Math.min(1.0, diffuse + specular * 0.7);
+          const charIdx = Math.min(charSet.length - 1, Math.floor(brightness * charSet.length));
+          const char = charSet[charIdx];
+
+          let twinkle = 1.0;
+          if (pt.tag === this.TAG_BAUBLE) {
+            twinkle = 0.8 + 0.35 * Math.sin(elapsed * 4.5 + pt.phase);
+          } else if (pt.tag === this.TAG_STAR) {
+            twinkle = 0.85 + 0.25 * Math.sin(elapsed * 5.0);
+          }
+
+          ctx.fillStyle = pt.color;
+          ctx.globalAlpha = Math.min(1.0, (diffuse * 0.9 + specular * 0.8) * twinkle);
+
+          if (pt.tag === this.TAG_STAR) {
+            ctx.shadowColor = '#facc15';
+            ctx.shadowBlur = 14;
+          } else if (pt.tag === this.TAG_BAUBLE && specular > 0.3) {
+            ctx.shadowColor = pt.color;
+            ctx.shadowBlur = 8;
+          } else {
+            ctx.shadowBlur = 0;
+          }
+
+          const charSize = Math.max(7, Math.floor((baseFontSize / z) * 4.8 * scale));
+          ctx.font = `${charSize}px monospace`;
+          ctx.fillText(char, sx, syPos);
+        }
+
+        ctx.globalAlpha = 1.0;
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // --- DOM Initialization ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('asciiCanvas');
+      const viewport = document.getElementById('viewport');
+      const win = document.getElementById('treeWindow');
+      
+      const synthesizer = new ChimeSynthesizer();
+      let engine = null;
+
+      function resizeCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = viewport.getBoundingClientRect();
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      engine = new PointCloudEngine(canvas);
+
+      function animate(time) {
+        engine.render(time);
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+
+      // Auto-Rotate
+      const btnRotate = document.getElementById('btnRotate');
+      btnRotate.addEventListener('click', () => {
+        engine.autoRotate = !engine.autoRotate;
+        btnRotate.classList.toggle('active', engine.autoRotate);
+      });
+
+      // Replay
+      const btnReplay = document.getElementById('btnReplay');
+      btnReplay.addEventListener('click', () => {
+        engine.replayBuild();
+      });
+
+      // Music
+      const btnMusic = document.getElementById('btnMusic');
+      const musicLabel = document.getElementById('musicLabel');
+      btnMusic.addEventListener('click', () => {
+        const isPlaying = synthesizer.toggle();
+        btnMusic.classList.toggle('active', isPlaying);
+        musicLabel.textContent = isPlaying ? 'Music: Playing ♫' : 'Music: Off';
+      });
+
+      // Snow Density
+      const btnSnow = document.getElementById('btnSnow');
+      btnSnow.addEventListener('click', () => {
+        engine.snowDensity = (engine.snowDensity + 1) % 3;
+        const labels = ['❄ Snow: Light', '❄ Snow: Normal', '❄ Snow: Blizzard'];
+        btnSnow.textContent = labels[engine.snowDensity];
+      });
+
+      // Reset Cam
+      const btnResetCam = document.getElementById('btnResetCam');
+      btnResetCam.addEventListener('click', () => {
+        engine.targetPitch = 0.18;
+        engine.targetYaw = 0.38;
+        engine.targetDistance = 6.6;
+      });
+
+      // Fullscreen / Window Toggle
+      const btnMaximize = document.getElementById('btnMaximize');
+      btnMaximize.addEventListener('click', () => {
+        win.classList.toggle('fullscreen');
+        setTimeout(resizeCanvas, 320);
+      });
+
+      const btnMinimize = document.getElementById('btnMinimize');
+      btnMinimize.addEventListener('click', () => {
+        win.classList.toggle('fullscreen');
+        setTimeout(resizeCanvas, 320);
+      });
+
+      const btnClose = document.getElementById('btnClose');
+      btnClose.addEventListener('click', () => {
+        engine.replayBuild();
+        engine.targetPitch = 0.18;
+        engine.targetYaw = 0.38;
+        engine.targetDistance = 6.6;
+      });
+
+      // Gift Surprise Modal
+      const btnGiftSurprise = document.getElementById('btnGiftSurprise');
+      const giftModal = document.getElementById('giftModal');
+      const btnModalClose = document.getElementById('btnModalClose');
+      const giftText = document.getElementById('giftText');
+
+      const holidayGreetings = [
+        "🎄 Wishing you joy, peace, and health this festive season and throughout the new year!",
+        "✨ May your code compile on the first try and your holidays be merry, cozy, and bright!",
+        "🎁 May all the love, happiness, and success wrap around you like these festive ribbons!",
+        "⭐ Shine bright like the star atop the Christmas tree. Happy Holidays to you and your family!",
+        "☕ Here is to warm cocoa, cheerful moments, and unforgettable festive memories!"
+      ];
+
+      btnGiftSurprise.addEventListener('click', () => {
+        const randomMsg = holidayGreetings[Math.floor(Math.random() * holidayGreetings.length)];
+        giftText.textContent = `"${randomMsg}"`;
+        giftModal.classList.add('open');
+      });
+
+      btnModalClose.addEventListener('click', () => {
+        const randomMsg = holidayGreetings[Math.floor(Math.random() * holidayGreetings.length)];
+        giftText.textContent = `"${randomMsg}"`;
+        giftModal.classList.remove('open');
+      });
+
+      giftModal.addEventListener('click', (e) => {
+        if (e.target === giftModal) giftModal.classList.remove('open');
+      });
+
+      // View Code Modal
+      const btnShowCode = document.getElementById('btnShowCode');
+      const codeModal = document.getElementById('codeModal');
+      const btnCodeModalClose = document.getElementById('btnCodeModalClose');
+
+      btnShowCode.addEventListener('click', () => {
+        codeModal.classList.add('open');
+      });
+
+      btnCodeModalClose.addEventListener('click', () => {
+        codeModal.classList.remove('open');
+      });
+
+      codeModal.addEventListener('click', (e) => {
+        if (e.target === codeModal) codeModal.classList.remove('open');
+      });
+    });
+  </script>
+</body>
+</html>
